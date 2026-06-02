@@ -990,7 +990,7 @@ ipcMain.handle('voice:getToken', async () => {
 // coordinates mirror package.json's `build.publish` block. Unauthenticated
 // GitHub API allows ~60 req/hr — a daily poll plus the odd manual check is
 // nowhere near that.
-const UPDATE_REPO = { owner: 'stephengpope', repo: 'shockwave' };
+const UPDATE_REPO = { owner: 'MatheeshaAI', repo: 'shockwave' };
 const UPDATE_POLL_MS = 24 * 60 * 60 * 1000; // daily auto-check
 
 // "v1.2.3" / "1.2.3-beta" → [1,2,3]; the leading "v" and any pre-release/build

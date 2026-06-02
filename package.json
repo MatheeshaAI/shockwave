@@ -59,11 +59,11 @@
     "remark-gfm": "^4.0.1"
   },
   "build": {
-    "appId": "com.example.shockwave",
+    "appId": "ai.matheesha.shockwave",
     "productName": "Shockwave",
     "publish": {
       "provider": "github",
-      "owner": "stephengpope",
+      "owner": "MatheeshaAI",
       "repo": "shockwave",
       "releaseType": "release"
     },

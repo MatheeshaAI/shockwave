@@ -47,9 +47,9 @@ Grab the latest build for your platform — these links always point at the newe
 
 | Platform | Download |
 |---|---|
-| **macOS** (Apple Silicon) | [Shockwave-mac.dmg](https://github.com/stephengpope/shockwave/releases/latest/download/Shockwave-mac.dmg) |
-| **Windows** | [Shockwave-windows.exe](https://github.com/stephengpope/shockwave/releases/latest/download/Shockwave-windows.exe) |
-| **Linux** | [Shockwave-linux.AppImage](https://github.com/stephengpope/shockwave/releases/latest/download/Shockwave-linux.AppImage) |
+| **macOS** (Apple Silicon) | [Shockwave-mac.dmg](https://github.com/MatheeshaAI/shockwave/releases/latest/download/Shockwave-mac.dmg) |
+| **Windows** | [Shockwave-windows.exe](https://github.com/MatheeshaAI/shockwave/releases/latest/download/Shockwave-windows.exe) |
+| **Linux** | [Shockwave-linux.AppImage](https://github.com/MatheeshaAI/shockwave/releases/latest/download/Shockwave-linux.AppImage) |
 
 > [!NOTE]
 > The builds aren't code-signed yet, so each OS shows a one-time warning. Here's how to get past it:
