@@ -10,6 +10,9 @@ on:
       - 'v*'
 
 # Required so the auto-provided GITHUB_TOKEN can create/upload the release.
+# `contents: write` is also set explicitly here so it works regardless of
+# the repo-level "Workflow permissions" setting (which defaults to read-only
+# on forks and new repos).
 permissions:
   contents: write
 
