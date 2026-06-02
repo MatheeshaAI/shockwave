@@ -1,4 +1,4 @@
-import React, { createContext, forwardRef, memo, useCallback, useContext, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import React, { createContext, forwardRef, memo, useCallback, useContext, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { PaperclipIcon, PlayIcon, StopIcon, RotateCcwIcon, XIcon, FileTextIcon, MicIcon, PanelRightCloseIcon, CopyIcon, CheckIcon } from './Icons.jsx';
@@ -11,9 +11,16 @@ import {
   nextAttachmentId,
   composePromptText,
   toImageContents,
+  composeMentionsPrompt,
 } from './chatAttachments.js';
 import { useVoiceInput } from './voice/useVoiceInput.js';
 import { VoiceBars } from './voice/VoiceBars.jsx';
+import { useMentionSearch } from './useMentionSearch';
+import { useMentionDetector } from './useMentionDetector';
+import { useMentionPosition } from './useMentionPosition.js';
+import MentionDropdown from './MentionDropdown.jsx';
+import MentionChip from './MentionChip.jsx';
+import { candidateToToken, MentionCandidate, MentionToken } from './mentions.js';
 
 // Workspace path available to MARKDOWN_COMPONENTS' `img` override via context,
 // so the module-level components object stays referentially stable (preserving
@@ -252,6 +259,11 @@ const MessageRow = memo(function MessageRow({ message: m }: any) {
           {m.attachments && m.attachments.length > 0 && (
             <AttachmentRow attachments={m.attachments} readOnly />
           )}
+          {m.mentions && m.mentions.length > 0 && (
+            <div className="chat-user-mentions">
+              {m.mentions.map((t) => <MentionChip key={t.id} token={t} readOnly />)}
+            </div>
+          )}
           {m.text && <div className="chat-user-text">{m.text}</div>}
         </div>
         {m.text && <CopyButton text={m.text} />}
@@ -303,7 +315,7 @@ function ToolEntry({ entry }) {
   );
 }
 
-const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspacePath }, ref) {
+const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspacePath, tree }, ref) {
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [running, setRunning] = useState(false);
@@ -329,6 +341,73 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
   const dragCounterRef = useRef(0);
 
   const nextId = () => `m${++idCounterRef.current}`;
+
+  // @-mention picker. `useMentionSearch` builds a stable fuzzysort index over
+  // the workspace tree (memoized on tree + workspacePath); `useMentionDetector`
+  // inspects the textarea's cursor + value to decide whether a mention is
+  // active and where the dropdown should anchor. The dropdown itself is
+  // presentational — its open/results/activeIndex state lives here so the
+  // textarea's onKeyDown can drive navigation.
+  const { search: mentionSearch, indexedCount: mentionIndexedCount } = useMentionSearch(tree ?? [], workspacePath);
+  const mention = useMentionDetector(textareaRef, input);
+  const [mentionActive, setMentionActive] = useState(false);
+  const [mentionResults, setMentionResults] = useState<MentionCandidate[]>([]);
+  const [mentionActiveIndex, setMentionActiveIndex] = useState(0);
+  const [mentions, setMentions] = useState<MentionToken[]>([]);
+  const mentionPanelRef = useRef<any>(null);
+  const [mentionPanelSize, setMentionPanelSize] = useState({ width: 360, height: 280 });
+  const mentionPosition = useMentionPosition(mention.caretRect, mentionPanelSize);
+
+  useEffect(() => {
+    if (!mention.active) {
+      setMentionActive(false);
+      setMentionResults([]);
+      return;
+    }
+    const results = mentionSearch(mention.query);
+    setMentionActive(true);
+    setMentionResults(results);
+    setMentionActiveIndex(0);
+  }, [mention.active, mention.query, mentionSearch]);
+
+  useLayoutEffect(() => {
+    if (!mentionActive) return;
+    const el = mentionPanelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    setMentionPanelSize({ width: rect.width, height: rect.height });
+  }, [mentionActive, mentionResults.length]);
+
+  const closeMention = useCallback(() => {
+    setMentionActive(false);
+    setMentionResults([]);
+    setMentionActiveIndex(0);
+  }, []);
+
+  const pickMention = useCallback((candidate: MentionCandidate) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const token = candidateToToken(candidate);
+    const replaceStart = mention.startIndex;
+    const caretAfter = ta.selectionStart ?? input.length;
+    if (mentions.some((m) => m.id === token.id)) {
+      closeMention();
+      return;
+    }
+    setMentions((prev) => [...prev, token]);
+    setInput(input.slice(0, replaceStart) + input.slice(caretAfter));
+    closeMention();
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (!el) return;
+      try { el.setSelectionRange(replaceStart, replaceStart); } catch { /* cosmetic */ }
+      el.focus();
+    });
+  }, [input, mention.startIndex, mentions, closeMention]);
+
+  const removeMention = useCallback((id: string) => {
+    setMentions((prev) => prev.filter((m) => m.id !== id));
+  }, []);
 
   // Subscribe to agent events from main.
   useEffect(() => {
@@ -484,7 +563,7 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
       setInput(input + sep + partialText);
       setPartialText('');
     }
-    if (!typed && attachments.length === 0) return;
+    if (!typed && attachments.length === 0 && mentions.length === 0) return;
     if (running) return;
     if (!workspacePath) {
       setError('Open a workspace first.');
@@ -495,8 +574,19 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
 
     const imageAttachments = attachments.filter((a) => a.kind === 'image');
     const textAttachments = attachments.filter((a) => a.kind === 'text');
-    const promptText = composePromptText(typed, textAttachments);
+    const baseText = composePromptText(typed, textAttachments);
     const images = toImageContents(imageAttachments);
+
+    let promptText: string;
+    try {
+      promptText = mentions.length > 0
+        ? await composeMentionsPrompt(mentions, baseText)
+        : baseText;
+    } catch (err: any) {
+      setError(err?.message ?? String(err));
+      setRunning(false);
+      return;
+    }
 
     const userId = nextId();
     lastSentUserIdRef.current = userId;
@@ -505,9 +595,11 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
       kind: 'user',
       text: typed,
       attachments: attachments.map((a) => ({ ...a })),
+      mentions: mentions.map((t) => ({ ...t })),
     }]);
     setInput('');
     setAttachments([]);
+    setMentions([]);
     setRunning(true);
     try {
       await window.api.agent.send(promptText, images);
@@ -515,7 +607,7 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
       setRunning(false);
       setError(err?.message ?? String(err));
     }
-  }, [input, partialText, attachments, running, workspacePath]);
+  }, [input, partialText, attachments, mentions, running, workspacePath]);
 
   const onStop = useCallback(async () => {
     try { await window.api.agent.abort(); } catch { /* abort is best-effort */ }
@@ -659,11 +751,53 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
   }, [ingestFiles]);
 
   const onKeyDown = useCallback((e) => {
+    // @-mention picker keyboard model:
+    //   ArrowUp/Down  → move the active index
+    //   Enter         → pick the active result (don't send the message)
+    //   Escape        → close the picker
+    //   Tab           → pick the active result (matches QuickSearch)
+    // We check `mentionActive` (not `mention.active`) because the detector
+    // may briefly report false on a transient keystroke — once the picker is
+    // open we own the keys until the user explicitly closes or picks.
+    if (mentionActive && mentionResults.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionActiveIndex((i) => Math.min(i + 1, mentionResults.length - 1));
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionActiveIndex((i) => Math.max(i - 1, 0));
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const pick = mentionResults[mentionActiveIndex];
+        if (pick) pickMention(pick);
+        return;
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const pick = mentionResults[mentionActiveIndex];
+        if (pick) pickMention(pick);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        closeMention();
+        return;
+      }
+    } else if (mentionActive && e.key === 'Escape') {
+      // Picker is open but empty (no results) — Escape still closes it.
+      e.preventDefault();
+      closeMention();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       onSend();
     }
-  }, [onSend]);
+  }, [mentionActive, mentionResults, mentionActiveIndex, pickMention, closeMention, onSend]);
 
   // Imperative surface for the "Send to Agent" right-click flow in App.jsx.
   // setComposerText replaces or appends; focusComposer moves caret to end and
@@ -780,6 +914,13 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
         {attachments.length > 0 && (
           <AttachmentRow attachments={attachments} onRemove={removeAttachment} />
         )}
+        {mentions.length > 0 && (
+          <div className="chat-mentions">
+            {mentions.map((t) => (
+              <MentionChip key={t.id} token={t} onRemove={removeMention} />
+            ))}
+          </div>
+        )}
         {rejected && (
           <div className="chat-attachment-error">
             <span>{rejected.name}: {rejected.reason}</span>
@@ -847,6 +988,16 @@ const ChatSidebar = forwardRef<any, any>(function ChatSidebar({ onClose, workspa
             ><PlayIcon size={14} /></button>
           )}
         </div>
+        <MentionDropdown
+          ref={mentionPanelRef}
+          open={mentionActive}
+          query={mention.query}
+          results={mentionResults}
+          activeIndex={mentionActiveIndex}
+          position={mentionPosition}
+          onSelect={pickMention}
+          onClose={closeMention}
+        />
       </div>
     </div>
   );

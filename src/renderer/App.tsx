@@ -1569,7 +1569,7 @@ export default function App() {
             className="chat-sidebar-resize-handle"
             onMouseDown={onChatSidebarResizeStart}
           />
-          <ChatSidebar ref={setChatSidebarRef} onClose={toggleChatSidebar} workspacePath={workspacePath} />
+          <ChatSidebar ref={setChatSidebarRef} onClose={toggleChatSidebar} workspacePath={workspacePath} tree={sortedTree} />
         </aside>
       ) : (
         <button

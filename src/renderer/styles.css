@@ -3039,3 +3039,198 @@ html, body, #root {
   font-size: 13px;
   font-weight: 500;
 }
+
+/* ---------- Chat mention dropdown (portal, position:fixed) ---------- */
+
+.mention-dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  background: transparent;
+}
+
+.mention-dropdown {
+  position: fixed;
+  z-index: 9999;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.mention-dropdown-list {
+  margin: 0;
+  padding: 4px 0;
+  list-style: none;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mention-dropdown-group-header {
+  user-select: none;
+}
+
+.mention-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px 4px 8px;
+  cursor: pointer;
+  color: var(--fg-primary);
+  user-select: none;
+  line-height: 1.3;
+  position: relative;
+}
+
+.mention-dropdown-item.is-active {
+  background: var(--bg-hover);
+}
+
+.mention-dropdown-item:hover {
+  background: var(--bg-hover);
+}
+
+.mention-dropdown-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: var(--fg-secondary);
+  width: 14px;
+  height: 14px;
+}
+
+.mention-dropdown-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-dropdown-display {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mention-dropdown-subtitle {
+  flex-shrink: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.mention-dropdown-highlight {
+  color: var(--fg-accent);
+  font-weight: 600;
+}
+
+.mention-dropdown-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--fg-muted);
+}
+
+.mention-dropdown-footer {
+  flex-shrink: 0;
+  background: var(--bg-thin);
+  user-select: none;
+}
+
+@keyframes mention-dropdown-fade-in {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Mention chip (composer + user bubble) ---------- */
+
+.mention-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px 2px 4px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--fg-primary);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  max-width: 220px;
+  cursor: default;
+  user-select: none;
+}
+
+.mention-chip:hover {
+  background: var(--bg-hover);
+  border-color: var(--border-hover, var(--border));
+}
+
+.mention-chip.is-readonly {
+  cursor: default;
+}
+
+.mention-chip-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-secondary);
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+}
+
+.mention-chip-display {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.mention-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-muted);
+  padding: 0;
+  cursor: pointer;
+  margin-left: 2px;
+}
+
+.mention-chip-remove:hover {
+  background: var(--bg-hover);
+  color: var(--fg-primary);
+}
+
+/* ---------- Mention row in composer (above textarea) ---------- */
+
+.chat-mentions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+/* ---------- Mention row inside user bubble ---------- */
+
+.chat-user-mentions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 6px;
+}
